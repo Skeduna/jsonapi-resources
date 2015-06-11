@@ -236,13 +236,14 @@ module JSONAPI
       return unless sort_criteria
 
       @sort_criteria = CSV.parse_line(URI.unescape(sort_criteria)).collect do |sort|
-        sort_criteria = {field: unformat_key(sort[1..-1]).to_s}
         if sort.start_with?('-')
+          sort_criteria = {field: unformat_key(sort[1..-1]).to_s}
           sort_criteria[:direction] = :desc
         else
+          sort_criteria = {field: unformat_key(sort).to_s}
           sort_criteria[:direction] = :asc
         end
-        
+
         check_sort_criteria(@resource_klass, sort_criteria)
         sort_criteria
       end
@@ -250,7 +251,6 @@ module JSONAPI
 
     def check_sort_criteria(resource_klass, sort_criteria)
       sort_field = sort_criteria[:field]
-
       sortable_fields = resource_klass.sortable_fields(context)
 
       unless sortable_fields.include? sort_field.to_sym

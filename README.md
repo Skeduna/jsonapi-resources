@@ -9,6 +9,29 @@ of your resources, including their attributes and relationships, to make your se
 JR is designed to work with Rails 4.0+, and provides custom routes, controllers, and serializers. JR's resources may be
 backed by ActiveRecord models or by custom objects.
 
+## Table of Contents
+
+* [Demo App] (#demo-app)
+* [Client Libraries] (#client-libraries)
+* [Installation] (#installation)
+* [Usage] (#usage)
+  * [Resources] (#resources)
+    * [JSONAPI::Resource] (#jsonapiresource)
+    * [Attributes] (#attributes)
+    * [Primary Key] (#primary-key)
+    * [Model Name] (#model-name)
+    * [Relationships] (#relationships)
+    * [Filters] (#filters)
+    * [Pagination] (#pagination)
+    * [Included relationships (side-loading resources)] (#included-relationships-side-loading-resources)
+    * [Callbacks] (#callbacks)
+  * [Controllers] (#controllers)
+    * [Namespaces] (#namespaces)
+    * [Error Codes] (#error-codes)
+  * [Serializer] (#serializer)
+* [Contributing] (#contributing)
+* [License] (#license)
+
 ## Demo App
 
 We have a simple demo app, called [Peeps](https://github.com/cerebris/peeps), available to show how JR is used.
@@ -54,9 +77,14 @@ class ContactResource < JSONAPI::Resource
 end
 ```
 
+A jsonapi-resource generator is avaliable
+```
+rails generate jsonapi:resource contact
+```
+
 ##### Abstract Resources
 
-Resources that are not backed by a model (purely used as base classes for other resources) should be declared as 
+Resources that are not backed by a model (purely used as base classes for other resources) should be declared as
 abstract.
 
 Because abstract resources do not expect to be backed by a model, they won't attempt to discover the model class
@@ -65,7 +93,7 @@ or any of its relationships.
 ```ruby
 class BaseResource < JSONAPI::Resource
   abstract
-  
+
   has_one :creator
 end
 
@@ -422,7 +450,8 @@ end
 
 ```
 
-For example, you may want raise an error if the user is not authorized to view the related records.
+For example, you may want raise an error if the user is not authorized to view the related records. See the next
+section for additional details on raising errors.
 
 ```ruby
 class BaseResource < JSONAPI::Resource
@@ -438,6 +467,42 @@ class BaseResource < JSONAPI::Resource
   end
 end
 ```
+
+
+###### Raising Errors
+
+Inside the finder methods (like `records_for`) or inside of resource callbacks
+(like `before_save`) you can `raise` an error to halt processing. JSONAPI::Resources
+has some built in errors that will return appropriate error codes. By
+default any other error that you raise will return a `500` status code
+for a general internal server error.
+
+To return useful error codes that represent application errors you
+should set the `exception_class_whitelist` config varible, and then you
+should use the Rails `rescue_from` macro to render a status code.
+
+For example, this config setting allows the `NotAuthorizedError` to bubble up out of
+JSONAPI::Resources and into your application.
+
+```ruby
+# config/initializer/jsonapi-resources.rb
+JSONAPI.configure do |config|
+  config.exception_class_whitelist = [NotAuthorizedError]
+end
+```
+
+Handling the error and rendering the appropriate code is now the resonsiblity of the
+application and could be handled like this:
+
+```ruby
+class ApiController < ApplicationController
+  rescue_from NotAuthorizedError, with: :reject_forbidden_request
+  def reject_forbidden_request
+    render json: {error: 'Forbidden'}, :status => 403
+  end
+end
+```
+
 
 ###### Applying Filters
 
@@ -565,6 +630,67 @@ end
 ```
 
 To disable pagination in a resource, specify `:none` for `paginator`.
+
+#### Included relationships (side-loading resources)
+
+JR supports [request include params](http://jsonapi.org/format/#fetching-includes) out of the box, for side loading related resources.
+
+Here's an example from the spec:
+
+```
+GET /articles/1?include=comments HTTP/1.1
+Accept: application/vnd.api+json
+```
+
+Will get you the following payload by default:
+
+```
+{
+  "data": {
+    "type": "articles",
+    "id": "1",
+    "attributes": {
+      "title": "JSON API paints my bikeshed!"
+    },
+    "links": {
+      "self": "http://example.com/articles/1"
+    },
+    "relationships": {
+      "comments": {
+        "links": {
+          "self": "http://example.com/articles/1/relationships/comments",
+          "related": "http://example.com/articles/1/comments"
+        },
+        "data": [
+          { "type": "comments", "id": "5" },
+          { "type": "comments", "id": "12" }
+        ]
+      }
+    }
+  },
+  "included": [{
+    "type": "comments",
+    "id": "5",
+    "attributes": {
+      "body": "First!"
+    },
+    "links": {
+      "self": "http://example.com/comments/5"
+    }
+  }, {
+    "type": "comments",
+    "id": "12",
+    "attributes": {
+      "body": "I like XML better"
+    },
+    "links": {
+      "self": "http://example.com/comments/12"
+    }
+  }]
+}
+```
+
+You can also pass an `include` option to [Serializer#serialize_to_hash](#include) if you want to define this inline.
 
 #### Callbacks
 
@@ -840,7 +966,7 @@ example:
 
 ```ruby
 JSONAPI.configure do |config|
-  config.use_text_errors = :true
+  config.use_text_errors = true
 end
 ```
 
@@ -1272,7 +1398,16 @@ JSONAPI.configure do |config|
   #:basic, :active_record, or custom
   config.operations_processor = :active_record
 
-  config.allowed_request_params = [:include, :fields, :format, :controller, :action, :sort, :page]
+  # optional request features
+  config.allow_include = true
+  config.allow_sort = true
+  config.allow_filter = true
+
+  # How to handle unsupported attributes and relationships which are provided in the request
+  # true => raises an error
+  # false => allows the request to continue. A warning is included in the response meta data indicating
+  # the fields which were ignored. This is useful for client libraries which send extra parameters.
+  config.raise_if_parameters_not_allowed = true
 
   # :none, :offset, :paged, or a custom paginator name
   config.default_paginator = :none

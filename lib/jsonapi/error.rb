@@ -14,7 +14,21 @@ module JSONAPI
                         end
       @source         = options[:source]
       @links          = options[:links]
-      @status         = options[:status]
+
+      @status         = Rack::Utils::SYMBOL_TO_STATUS_CODE[options[:status]].to_s
+    end
+  end
+
+  class Warning
+    attr_accessor :title, :detail, :code
+    def initialize(options = {})
+      @title          = options[:title]
+      @detail         = options[:detail]
+      @code           = if JSONAPI.configuration.use_text_errors
+                          TEXT_ERRORS[options[:code]]
+                        else
+                          options[:code]
+                        end
     end
   end
 end

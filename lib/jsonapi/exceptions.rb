@@ -11,7 +11,7 @@ module JSONAPI
 
       def errors
         [JSONAPI::Error.new(code: JSONAPI::INTERNAL_SERVER_ERROR,
-                            status: 500,
+                            status: :internal_server_error,
                             title: 'Internal Server Error',
                             detail: 'Internal Server Error')]
       end
@@ -317,8 +317,8 @@ module JSONAPI
       def json_api_error(attr_key, message)
         JSONAPI::Error.new(code: JSONAPI::VALIDATION_ERROR,
                            status: :unprocessable_entity,
-                           title: "#{format_key(attr_key)} - #{message}",
-                           detail: message,
+                           title: message,
+                           detail: "#{format_key(attr_key)} - #{message}",
                            source: { pointer: pointer(attr_key) })
       end
 

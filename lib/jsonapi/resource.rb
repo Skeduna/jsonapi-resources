@@ -111,8 +111,8 @@ module JSONAPI
 
     # Override this on a resource to customize how the associated records
     # are fetched for a model. Particularly helpful for authorization.
-    def records_for(relationship_name, _options = {})
-      model.public_send relationship_name
+    def records_for(relation_name, _options = {})
+      model.public_send relation_name
     end
 
     private
@@ -165,10 +165,11 @@ module JSONAPI
       relationship_key_values.each do |relationship_key_value|
         related_resource = relationship.resource_klass.find_by_key(relationship_key_value, context: @context)
 
+        relation_name = relationship.relation_name(context: @context)
         # TODO: Add option to skip relations that already exist instead of returning an error?
-        relation = @model.public_send(relationship.type).where(relationship.primary_key => relationship_key_value).first
+        relation = @model.public_send(relation_name).where(relationship.primary_key => relationship_key_value).first
         if relation.nil?
-          @model.public_send(relationship.type) << related_resource.model
+          @model.public_send(relation_name) << related_resource.model
         else
           fail JSONAPI::Exceptions::HasManyRelationExists.new(relationship_key_value)
         end
@@ -472,8 +473,7 @@ module JSONAPI
         records
       end
 
-      def filter_records(filters, options)
-        records = records(options)
+      def filter_records(filters, options, records = records(options))
         records = apply_filters(records, filters, options)
         apply_includes(records, options)
       end
@@ -483,7 +483,7 @@ module JSONAPI
       end
 
       def find_count(filters, options = {})
-        filter_records(filters, options).count
+        filter_records(filters, options).count(:all)
       end
 
       # Override this method if you have more complex requirements than this basic find method provides
@@ -686,7 +686,7 @@ module JSONAPI
           check_reserved_relationship_name(attr)
 
           # Initialize from an ActiveRecord model's properties
-          if _model_class && _model_class < ActiveRecord::Base
+          if _model_class && _model_class.ancestors.collect{|ancestor| ancestor.name}.include?('ActiveRecord::Base')
             model_association = _model_class.reflect_on_association(attr)
             if model_association
               options[:class_name] ||= model_association.class_name

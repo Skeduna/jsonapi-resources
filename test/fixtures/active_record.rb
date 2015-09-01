@@ -397,8 +397,11 @@ end
 class PurchaseOrder < ActiveRecord::Base
   belongs_to :customer
   has_many :line_items
+  has_many :admin_line_items, class_name: 'LineItem', foreign_key: 'purchase_order_id'
 
   has_and_belongs_to_many :order_flags, join_table: :purchase_orders_order_flags
+
+  has_and_belongs_to_many :admin_order_flags, join_table: :purchase_orders_order_flags, class_name: 'OrderFlag'
 end
 
 class OrderFlag < ActiveRecord::Base
@@ -618,6 +621,9 @@ module Api
     end
 
     class PurchaseOrdersController < JSONAPI::ResourceController
+      def context
+        {current_user: $test_user}
+      end
     end
 
     class LineItemsController < JSONAPI::ResourceController
@@ -1026,6 +1032,8 @@ module Api
         end
       }
 
+      has_many :aliased_comments, class_name: 'BookComments', relation_name: :approved_book_comments
+
       filters :banned, :book_comments
 
       class << self
@@ -1200,8 +1208,28 @@ module Api
       attribute :total
 
       has_one :customer
-      has_many :line_items
-      has_many :order_flags, acts_as_set: true
+      has_many :line_items, relation_name: -> (options = {}) {
+                            context = options[:context]
+                            current_user = context ? context[:current_user] : nil
+
+                            unless current_user && current_user.book_admin
+                              :line_items
+                            else
+                              :admin_line_items
+                            end
+                          }
+
+      has_many :order_flags, acts_as_set: true,
+               relation_name: -> (options = {}) {
+                             context = options[:context]
+                             current_user = context ? context[:current_user] : nil
+
+                             unless current_user && current_user.book_admin
+                               :order_flags
+                             else
+                               :admin_order_flags
+                             end
+                           }
     end
 
     class OrderFlagResource < JSONAPI::Resource

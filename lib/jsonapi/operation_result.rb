@@ -42,6 +42,16 @@ module JSONAPI
     end
   end
 
+  class RelatedResourcesOperationResult < ResourcesOperationResult
+    attr_accessor :source_resource, :_type
+
+    def initialize(code, source_resource, type, resources, options = {})
+      @source_resource = source_resource
+      @_type = type
+      super(code, resources, options)
+    end
+  end
+
   class LinksObjectOperationResult < OperationResult
     attr_accessor :parent_resource, :relationship
 

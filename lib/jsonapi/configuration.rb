@@ -8,8 +8,11 @@ module JSONAPI
                 :key_formatter,
                 :route_format,
                 :route_formatter,
+                :raise_if_parameters_not_allowed,
                 :operations_processor,
-                :allowed_request_params,
+                :allow_include,
+                :allow_sort,
+                :allow_filter,
                 :default_paginator,
                 :default_page_size,
                 :maximum_page_size,
@@ -31,7 +34,12 @@ module JSONAPI
       #:basic, :active_record, or custom
       self.operations_processor = :active_record
 
-      self.allowed_request_params = [:include, :fields, :format, :controller, :action, :sort, :page]
+      # optional request features
+      self.allow_include = true
+      self.allow_sort = true
+      self.allow_filter = true
+
+      self.raise_if_parameters_not_allowed = true
 
       # :none, :offset, :paged, or a custom paginator name
       self.default_paginator = :none
@@ -79,7 +87,7 @@ module JSONAPI
       @operations_processor = JSONAPI::OperationsProcessor.operations_processor_for(@operations_processor_name)
     end
 
-    attr_writer :allowed_request_params
+    attr_writer :allow_include, :allow_sort, :allow_filter
 
     attr_writer :default_paginator
 
@@ -100,6 +108,8 @@ module JSONAPI
     attr_writer :always_include_to_one_linkage_data
 
     attr_writer :always_include_to_many_linkage_data
+
+    attr_writer :raise_if_parameters_not_allowed
   end
 
   class << self

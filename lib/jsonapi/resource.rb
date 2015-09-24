@@ -180,7 +180,6 @@ module JSONAPI
 
     def _replace_to_many_links(relationship_type, relationship_key_values)
       relationship = self.class._relationships[relationship_type]
-
       send("#{relationship.foreign_key}=", relationship_key_values)
       @save_needed = true
 
@@ -208,9 +207,7 @@ module JSONAPI
     end
 
     def _remove_to_many_link(relationship_type, key)
-      relationship = self.class._relationships[relationship_type]
-
-      @model.public_send(relationship.type).delete(key)
+      @model.public_send(relationship_type).delete(key)
 
       :completed
     end
@@ -545,9 +542,50 @@ module JSONAPI
         end
       end
 
-      # override to allow for key processing and checking
-      def verify_key(key, _context = nil)
-        key && Integer(key)
+      def key_type(key_type)
+        @_resource_key_type = key_type
+      end
+
+      def resource_key_type
+        @_resource_key_type || JSONAPI.configuration.resource_key_type
+      end
+
+      def verify_key(key, context = nil)
+        key_type = resource_key_type
+        verification_proc = case key_type
+
+        when :integer
+          -> (key, context) {
+            begin
+              return key if key.nil?
+              Integer(key)
+            rescue
+              raise JSONAPI::Exceptions::InvalidFieldValue.new(:id, key)
+            end
+          }
+        when :string
+          -> (key, context) {
+            return key if key.nil?
+            if key.to_s.include?(',')
+              raise JSONAPI::Exceptions::InvalidFieldValue.new(:id, key)
+            else
+              key
+            end
+          }
+        when :uuid
+          -> (key, context) {
+            return key if key.nil?
+            if key.to_s.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)
+              key
+            else
+              raise JSONAPI::Exceptions::InvalidFieldValue.new(:id, key)
+            end
+          }
+        else
+          key_type
+        end
+
+        verification_proc.call(key, context)
       rescue
         raise JSONAPI::Exceptions::InvalidFieldValue.new(:id, key)
       end
@@ -576,11 +614,6 @@ module JSONAPI
 
       def _updatable_relationships
         @_relationships.map { |key, _relationship| key }
-      end
-
-      def _has_relationship?(type)
-        type = type.to_s
-        @_relationships.key?(type.singularize.to_sym) || @_relationships.key?(type.pluralize.to_sym)
       end
 
       def _relationship(type)
@@ -643,7 +676,7 @@ module JSONAPI
       end
 
       def module_path
-        @module_path ||= name =~ /::[^:]+\Z/ ? ($`.freeze.gsub('::', '/') + '/').downcase : ''
+        @module_path ||= name =~ /::[^:]+\Z/ ? ($`.freeze.gsub('::', '/') + '/').underscore : ''
       end
 
       def construct_order_options(sort_params)
@@ -706,10 +739,9 @@ module JSONAPI
             @model.method("#{foreign_key}=").call(value)
           end unless method_defined?("#{foreign_key}=")
 
-          define_method associated_records_method_name do |options = {}|
-            options = options.merge({context: @context})
-            relation_name = relationship.relation_name(options)
-            records_for(relation_name, options)
+          define_method associated_records_method_name do
+            relation_name = relationship.relation_name(context: @context)
+            records_for(relation_name, context: @context)
           end unless method_defined?(associated_records_method_name)
 
           if relationship.is_a?(JSONAPI::Relationship::ToOne)

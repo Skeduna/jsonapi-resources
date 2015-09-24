@@ -3,7 +3,9 @@ require 'simplecov'
 # To run tests with coverage:
 # COVERAGE=true rake test
 # To Switch rails versions and run a particular test order:
-# export RAILS_VERSION=4.2; bundle update rails; bundle exec rake TESTOPTS="--seed=39333" test
+# export RAILS_VERSION=4.2.0; bundle update rails; bundle exec rake TESTOPTS="--seed=39333" test
+# We are no longer having Travis test Rails 4.0.x. To test on Rails 4.0.x use this:
+# export RAILS_VERSION=4.0.0; bundle update rails; bundle exec rake test
 
 if ENV['COVERAGE']
   SimpleCov.start do
@@ -95,13 +97,31 @@ TestApp.initialize!
 
 require File.expand_path('../fixtures/active_record', __FILE__)
 
+module Pets
+  module V1
+    class CatsController < JSONAPI::ResourceController
+
+    end
+
+    class CatResource < JSONAPI::Resource
+      attribute :id
+      attribute :name
+      attribute :breed
+
+      key_type :uuid
+    end
+  end
+end
+
 JSONAPI.configuration.route_format = :underscored_route
 TestApp.routes.draw do
   jsonapi_resources :people
   jsonapi_resources :comments
+  jsonapi_resources :firms
   jsonapi_resources :tags
   jsonapi_resources :posts do
     jsonapi_relationships
+    jsonapi_links :special_tags
   end
   jsonapi_resources :sections
   jsonapi_resources :iso_currencies
@@ -117,6 +137,8 @@ TestApp.routes.draw do
   jsonapi_resources :pictures
   jsonapi_resources :documents
   jsonapi_resources :products
+
+  
 
   namespace :api do
     namespace :v1 do
@@ -211,6 +233,12 @@ TestApp.routes.draw do
   namespace :admin_api do
     namespace :v1 do
       jsonapi_resources :people
+    end
+  end
+
+  namespace :pets do
+    namespace :v1 do
+      jsonapi_resources :cats
     end
   end
 

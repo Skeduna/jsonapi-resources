@@ -136,7 +136,7 @@ module JSONAPI
 
     def initialize_source(params)
       @source_klass = Resource.resource_for(params.require(:source))
-      @source_id = @source_klass.verify_key(params.require(@source_klass._as_parent_key), @context)
+      @source_id = @source_klass.verify_key(params.require(@source_klass._as_parent_key_id), @context)
     end
 
     def parse_pagination(page)

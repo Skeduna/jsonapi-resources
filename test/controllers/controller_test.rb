@@ -31,6 +31,57 @@ class PostsControllerTest < ActionController::TestCase
     JSONAPI.configuration = original_config
   end
 
+  def test_on_server_error_block_callback_with_exception
+    original_config = JSONAPI.configuration.dup
+    JSONAPI.configuration.operations_processor = :error_raising
+    JSONAPI.configuration.exception_class_whitelist = []
+
+    @controller.class.instance_variable_set(:@callback_message, "none")
+    @controller.class.on_server_error do
+      @controller.class.instance_variable_set(:@callback_message, "Sent from block")
+    end
+    
+    get :index
+    assert_equal @controller.class.instance_variable_get(:@callback_message), "Sent from block"
+
+    # test that it renders the default server error response
+    assert_equal "Internal Server Error", json_response['errors'][0]['title']
+    assert_equal "Internal Server Error", json_response['errors'][0]['detail']
+  ensure
+    JSONAPI.configuration = original_config
+  end
+
+  def test_on_server_error_method_callback_with_exception
+    original_config = JSONAPI.configuration.dup
+    JSONAPI.configuration.operations_processor = :error_raising
+    JSONAPI.configuration.exception_class_whitelist = [] 
+
+    #ignores methods that don't exist
+    @controller.class.on_server_error :set_callback_message, :a_bogus_method
+    @controller.class.instance_variable_set(:@callback_message, "none")
+
+    get :index
+    assert_equal @controller.class.instance_variable_get(:@callback_message), "Sent from method"
+
+    # test that it renders the default server error response
+    assert_equal "Internal Server Error", json_response['errors'][0]['title']
+  ensure
+    JSONAPI.configuration = original_config
+  end
+
+  def test_on_server_error_callback_without_exception
+    
+    callback = Proc.new { @controller.class.instance_variable_set(:@callback_message, "Sent from block") }
+    @controller.class.on_server_error callback
+    @controller.class.instance_variable_set(:@callback_message, "none")
+
+    get :index
+    assert_equal @controller.class.instance_variable_get(:@callback_message), "none"
+
+    # test that it does not render error
+    assert json_response.key?('data')
+  end
+
   def test_index_filter_with_empty_result
     get :index, {filter: {title: 'post that does not exist'}}
     assert_response :success
@@ -1157,11 +1208,29 @@ class PostsControllerTest < ActionController::TestCase
     p = Post.find(14)
     assert_equal [2, 3], p.tag_ids
 
-    delete :destroy_relationship, {post_id: 14, relationship: 'tags', keys: '3'}
+    delete :destroy_relationship, {post_id: 14, relationship: 'tags', data: [{type: 'tags', id: 3}]}
 
     p.reload
     assert_response :no_content
     assert_equal [2], p.tag_ids
+  end
+
+  def test_delete_relationship_to_many_with_relationship_url_not_matching_type
+    set_content_type_header!
+    PostResource.has_many :special_tags, relation_name: :special_tags, class_name: "Tag"
+    post :create_relationship, {post_id: 14, relationship: 'special_tags', data: [{type: 'tags', id: 2}]}
+
+    #check the relationship was created successfully
+    assert_equal 1, Post.find(14).special_tags.count
+    before_tags = Post.find(14).tags.count 
+
+    delete :destroy_relationship, {post_id: 14, relationship: 'special_tags', data: [{type: 'tags', id: 2}]}
+    assert_equal 0, Post.find(14).special_tags.count, "Relationship that matches URL relationship not destroyed"
+
+    #check that the tag association is not affected
+    assert_equal Post.find(14).tags.count, before_tags
+  ensure
+    PostResource.instance_variable_get(:@_relationships).delete(:special_tags)
   end
 
   def test_delete_relationship_to_many_does_not_exist
@@ -1171,7 +1240,7 @@ class PostsControllerTest < ActionController::TestCase
     p = Post.find(14)
     assert_equal [2, 3], p.tag_ids
 
-    delete :destroy_relationship, {post_id: 14, relationship: 'tags', keys: '4'}
+    delete :destroy_relationship, {post_id: 14, relationship: 'tags', data: [{type: 'tags', id: 4}]}
 
     p.reload
     assert_response :not_found

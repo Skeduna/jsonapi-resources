@@ -38,8 +38,8 @@ class RoutesTest < ActionDispatch::IntegrationTest
   end
 
   def test_routing_posts_links_tags_destroy
-    assert_routing({path: '/posts/1/relationships/tags/1,2', method: :delete},
-                   {controller: 'posts', action: 'destroy_relationship', post_id: '1', keys: '1,2', relationship: 'tags'})
+    assert_routing({path: '/posts/1/relationships/tags', method: :delete},
+                   {controller: 'posts', action: 'destroy_relationship', post_id: '1', relationship: 'tags'})
   end
 
   def test_routing_posts_links_tags_create
@@ -51,6 +51,17 @@ class RoutesTest < ActionDispatch::IntegrationTest
     assert_routing({path: '/posts/1/relationships/tags', method: :patch},
                    {controller: 'posts', action: 'update_relationship', post_id: '1', relationship: 'tags'})
   end
+
+  def test_routing_uuid
+    assert_routing({path: '/pets/v1/cats/f1a4d5f2-e77a-4d0a-acbb-ee0b98b3f6b5', method: :get},
+                   {action: 'show', controller: 'pets/v1/cats', id: 'f1a4d5f2-e77a-4d0a-acbb-ee0b98b3f6b5'})
+  end
+
+  # ToDo: refute this routing
+  # def test_routing_uuid_bad_format
+  #   assert_routing({path: '/pets/v1/cats/f1a4d5f2-e77a-4d0a-acbb-ee0b9', method: :get},
+  #                  {action: 'show', controller: 'pets/v1/cats', id: 'f1a4d5f2-e77a-4d0a-acbb-ee0b98'})
+  # end
 
   # Polymorphic
   def test_routing_polymorphic_get_related_resource

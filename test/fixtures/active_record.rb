@@ -38,6 +38,13 @@ ActiveRecord::Schema.define do
     t.timestamps null: false
   end
 
+  create_table :companies, force: true do |t|
+    t.string     :type
+    t.string     :name
+    t.string     :address
+    t.timestamps null: false
+  end
+
   create_table :tags, force: true do |t|
     t.string :name
   end
@@ -50,6 +57,11 @@ ActiveRecord::Schema.define do
     t.references :post, :tag, index: true
   end
   add_index :posts_tags, [:post_id, :tag_id], unique: true
+
+  create_table :special_post_tags, force: true do |t|
+    t.references :post, :tag, index: true
+  end
+  add_index :special_post_tags, [:post_id, :tag_id], unique: true
 
   create_table :comments_tags, force: true do |t|
     t.references :comment, :tag, index: true
@@ -234,16 +246,29 @@ class Post < ActiveRecord::Base
   belongs_to :writer, class_name: 'Person', foreign_key: 'author_id'
   has_many :comments
   has_and_belongs_to_many :tags, join_table: :posts_tags
+  has_many :special_post_tags, source: :tag
+  has_many :special_tags, through: :special_post_tags, source: :tag
   belongs_to :section
 
   validates :author, presence: true
   validates :title, length: { maximum: 35 }
 end
 
+class SpecialPostTag < ActiveRecord::Base
+  belongs_to :tag
+  belongs_to :post
+end
+
 class Comment < ActiveRecord::Base
   belongs_to :author, class_name: 'Person', foreign_key: 'author_id'
   belongs_to :post
   has_and_belongs_to_many :tags, join_table: :comments_tags
+end
+
+class Company < ActiveRecord::Base
+end
+
+class Firm < Company
 end
 
 class Tag < ActiveRecord::Base
@@ -478,9 +503,17 @@ class PostsController < ActionController::Base
   rescue_from PostsController::SpecialError do
     head :forbidden
   end
+
+  #called by test_on_server_error
+  def self.set_callback_message(error)
+    @callback_message = "Sent from method"
+  end
 end
 
 class CommentsController < JSONAPI::ResourceController
+end
+
+class FirmsController < JSONAPI::ResourceController
 end
 
 class SectionsController < JSONAPI::ResourceController
@@ -706,12 +739,25 @@ class CommentResource < JSONAPI::Resource
   filters :body
 end
 
+class CompanyResource < JSONAPI::Resource
+  attributes :name, :address
+end
+
+class FirmResource < CompanyResource
+end
+
 class TagResource < JSONAPI::Resource
   attributes :name
 
   has_many :posts
   # Not including the planets relationship so they don't get output
   #has_many :planets
+end
+
+class SpecialTagResource < JSONAPI::Resource
+  attributes :name
+
+  has_many :posts
 end
 
 class SectionResource < JSONAPI::Resource
@@ -727,6 +773,7 @@ class PostResource < JSONAPI::Resource
   has_one :section
   has_many :tags, acts_as_set: true
   has_many :comments, acts_as_set: false
+
 
   # Not needed - just for testing
   primary_key :id
@@ -800,16 +847,8 @@ class PostResource < JSONAPI::Resource
     return filter, values
   end
 
-  def self.is_num?(str)
-    begin
-      !!Integer(str)
-    rescue ArgumentError, TypeError
-      false
-    end
-  end
-
   def self.verify_key(key, context = nil)
-    raise JSONAPI::Exceptions::InvalidFieldValue.new(:id, key) unless is_num?(key)
+    super(key)
     raise JSONAPI::Exceptions::RecordNotFound.new(key) unless find_by_key(key, context: context)
     return key
   end
@@ -825,9 +864,7 @@ class IsoCurrencyResource < JSONAPI::Resource
 
   filter :country_name
 
-  def self.verify_key(key, context = nil)
-    key && String(key)
-  end
+  key_type :string
 end
 
 class ExpenseEntryResource < JSONAPI::Resource
@@ -1136,6 +1173,7 @@ module Api
     PostResource = PostResource.dup
     ExpenseEntryResource = ExpenseEntryResource.dup
     IsoCurrencyResource = IsoCurrencyResource.dup
+
 
     class BookResource < Api::V2::BookResource
       paginator :paged

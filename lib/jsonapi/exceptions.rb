@@ -10,10 +10,17 @@ module JSONAPI
       end
 
       def errors
+        unless Rails.env.production?
+          meta = Hash.new
+          meta[:exception] = exception.message
+          meta[:backtrace] = exception.backtrace
+        end
+
         [JSONAPI::Error.new(code: JSONAPI::INTERNAL_SERVER_ERROR,
                             status: :internal_server_error,
                             title: 'Internal Server Error',
-                            detail: 'Internal Server Error')]
+                            detail: 'Internal Server Error',
+                            meta: meta)]
       end
     end
 
@@ -297,7 +304,7 @@ module JSONAPI
       attr_reader :error_messages, :resource_relationships
 
       def initialize(resource)
-        @error_messages = resource.model.errors.messages
+        @error_messages = resource.model_error_messages
         @resource_relationships = resource.class._relationships.keys
         @key_formatter = JSONAPI.configuration.key_formatter
       end

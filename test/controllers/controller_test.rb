@@ -37,10 +37,10 @@ class PostsControllerTest < ActionController::TestCase
     JSONAPI.configuration.exception_class_whitelist = []
 
     @controller.class.instance_variable_set(:@callback_message, "none")
-    @controller.class.on_server_error do
+    BaseController.on_server_error do
       @controller.class.instance_variable_set(:@callback_message, "Sent from block")
     end
-    
+
     get :index
     assert_equal @controller.class.instance_variable_get(:@callback_message), "Sent from block"
 
@@ -54,7 +54,7 @@ class PostsControllerTest < ActionController::TestCase
   def test_on_server_error_method_callback_with_exception
     original_config = JSONAPI.configuration.dup
     JSONAPI.configuration.operations_processor = :error_raising
-    JSONAPI.configuration.exception_class_whitelist = [] 
+    JSONAPI.configuration.exception_class_whitelist = []
 
     #ignores methods that don't exist
     @controller.class.on_server_error :set_callback_message, :a_bogus_method
@@ -70,7 +70,7 @@ class PostsControllerTest < ActionController::TestCase
   end
 
   def test_on_server_error_callback_without_exception
-    
+
     callback = Proc.new { @controller.class.instance_variable_set(:@callback_message, "Sent from block") }
     @controller.class.on_server_error callback
     @controller.class.instance_variable_set(:@callback_message, "none")
@@ -1222,7 +1222,7 @@ class PostsControllerTest < ActionController::TestCase
 
     #check the relationship was created successfully
     assert_equal 1, Post.find(14).special_tags.count
-    before_tags = Post.find(14).tags.count 
+    before_tags = Post.find(14).tags.count
 
     delete :destroy_relationship, {post_id: 14, relationship: 'special_tags', data: [{type: 'tags', id: 2}]}
     assert_equal 0, Post.find(14).special_tags.count, "Relationship that matches URL relationship not destroyed"
@@ -2183,7 +2183,7 @@ class PeopleControllerTest < ActionController::TestCase
     assert_equal json_response['data'][0]['attributes']['name'], 'Joe Author'
   end
 
-  def test_get_related_resource
+  def test_get_related_resource_no_namespace
     original_config = JSONAPI.configuration.dup
     JSONAPI.configuration.json_key_format = :dasherized_key
     JSONAPI.configuration.route_format = :underscored_key
@@ -2253,6 +2253,15 @@ class PeopleControllerTest < ActionController::TestCase
   end
 end
 
+class BooksControllerTest < ActionController::TestCase
+  def test_books_include_correct_type
+    $test_user = Person.find(1)
+    get :index, {filter: {id: '1'}, include: 'authors'}
+    assert_response :success
+    assert_equal 'authors', json_response['included'][0]['type']
+  end
+end
+
 class Api::V5::AuthorsControllerTest < ActionController::TestCase
   def test_get_person_as_author
     get :index, {filter: {id: '1'}}
@@ -2264,12 +2273,89 @@ class Api::V5::AuthorsControllerTest < ActionController::TestCase
     assert_equal nil, json_response['data'][0]['attributes']['email']
   end
 
+  def test_show_person_as_author
+    get :show, {id: '1'}
+    assert_response :success
+    assert_equal '1', json_response['data']['id']
+    assert_equal 'authors', json_response['data']['type']
+    assert_equal 'Joe Author', json_response['data']['attributes']['name']
+    assert_equal nil, json_response['data']['attributes']['email']
+  end
+
   def test_get_person_as_author_by_name_filter
     get :index, {filter: {name: 'thor'}}
     assert_response :success
     assert_equal 3, json_response['data'].size
     assert_equal '1', json_response['data'][0]['id']
     assert_equal 'Joe Author', json_response['data'][0]['attributes']['name']
+  end
+
+  def test_meta_serializer_options
+    JSONAPI.configuration.json_key_format = :camelized_key
+
+    Api::V5::AuthorResource.class_eval do
+      def meta(options)
+        {
+          fixed: 'Hardcoded value',
+          computed: "#{self.class._type.to_s}: #{options[:serializer].link_builder.self_link(self)}",
+          computed_foo: options[:serialization_options][:foo],
+          options[:serializer].format_key('test_key') => 'test value'
+        }
+      end
+    end
+
+    get :show, {id: '1'}
+    assert_response :success
+    assert_equal '1', json_response['data']['id']
+    assert_equal 'Hardcoded value', json_response['data']['meta']['fixed']
+    assert_equal 'authors: http://test.host/api/v5/authors/1', json_response['data']['meta']['computed']
+    assert_equal 'bar', json_response['data']['meta']['computed_foo']
+    assert_equal 'test value', json_response['data']['meta']['testKey']
+
+  ensure
+    JSONAPI.configuration.json_key_format = :dasherized_key
+    Api::V5::AuthorResource.class_eval do
+      def meta(options)
+        # :nocov:
+        { }
+        # :nocov:
+      end
+    end
+  end
+
+  def test_meta_serializer_hash_data
+    JSONAPI.configuration.json_key_format = :camelized_key
+
+    Api::V5::AuthorResource.class_eval do
+      def meta(options)
+        {
+          custom_hash: {
+            fixed: 'Hardcoded value',
+            computed: "#{self.class._type.to_s}: #{options[:serializer].link_builder.self_link(self)}",
+            computed_foo: options[:serialization_options][:foo],
+            options[:serializer].format_key('test_key') => 'test value'
+          }
+        }
+      end
+    end
+
+    get :show, {id: '1'}
+    assert_response :success
+    assert_equal '1', json_response['data']['id']
+    assert_equal 'Hardcoded value', json_response['data']['meta']['custom_hash']['fixed']
+    assert_equal 'authors: http://test.host/api/v5/authors/1', json_response['data']['meta']['custom_hash']['computed']
+    assert_equal 'bar', json_response['data']['meta']['custom_hash']['computed_foo']
+    assert_equal 'test value', json_response['data']['meta']['custom_hash']['testKey']
+
+  ensure
+    JSONAPI.configuration.json_key_format = :dasherized_key
+    Api::V5::AuthorResource.class_eval do
+      def meta(options)
+        # :nocov:
+        { }
+        # :nocov:
+      end
+    end
   end
 end
 
@@ -2845,6 +2931,54 @@ class Api::V2::BooksControllerTest < ActionController::TestCase
     assert_response :success
     assert_equal 2, json_response['data'].size
   end
+
+  def test_books_create_unapproved_comment_limited_user_using_relation_name
+    set_content_type_header!
+    $test_user = Person.find(1)
+
+    book_comment = BookComment.create(body: 'Not Approved dummy comment', approved: false)
+    post :create_relationship, {book_id: 1, relationship: 'book_comments', data: [{type: 'book_comments', id: book_comment.id}]}
+
+    # Note the not_found response is coming from the BookComment's overridden records method, not the relation
+    assert_response :not_found
+
+  ensure
+    book_comment.delete
+  end
+
+  def test_books_create_approved_comment_limited_user_using_relation_name
+    set_content_type_header!
+    $test_user = Person.find(1)
+
+    book_comment = BookComment.create(body: 'Approved dummy comment', approved: true)
+    post :create_relationship, {book_id: 1, relationship: 'book_comments', data: [{type: 'book_comments', id: book_comment.id}]}
+    assert_response :success
+
+  ensure
+    book_comment.delete
+  end
+
+  def test_books_delete_unapproved_comment_limited_user_using_relation_name
+    $test_user = Person.find(1)
+
+    book_comment = BookComment.create(book_id: 1, body: 'Not Approved dummy comment', approved: false)
+    delete :destroy_relationship, {book_id: 1, relationship: 'book_comments', data: [{type: 'book_comments', id: book_comment.id}]}
+    assert_response :not_found
+
+  ensure
+    book_comment.delete
+  end
+
+  def test_books_delete_approved_comment_limited_user_using_relation_name
+    $test_user = Person.find(1)
+
+    book_comment = BookComment.create(book_id: 1, body: 'Approved dummy comment', approved: true)
+    delete :destroy_relationship, {book_id: 1, relationship: 'book_comments', data: [{type: 'book_comments', id: book_comment.id}]}
+    assert_response :no_content
+
+  ensure
+    book_comment.delete
+  end
 end
 
 class Api::V2::BookCommentsControllerTest < ActionController::TestCase
@@ -2975,19 +3109,29 @@ class Api::V1::MoonsControllerTest < ActionController::TestCase
    def test_get_related_resource
       get :get_related_resource, {crater_id: 'S56D', relationship: 'moon', source: "api/v1/craters"}
       assert_response :success
-      assert_hash_equals json_response,
-                              {
-                                data: {
-                                  id: "1",
-                                  type: "moons",
-                                  links: {self: "http://test.host/moons/1"},
-                                  attributes: {name: "Titan", description: "Best known of the Saturn moons."},
-                                  relationships: {
-                                    planet: {links: {self: "http://test.host/moons/1/relationships/planet", related: "http://test.host/moons/1/planet"}},
-                                    craters: {links: {self: "http://test.host/moons/1/relationships/craters", related: "http://test.host/moons/1/craters"}}}
-                                  }
-                                }
+      assert_hash_equals({
+                           data: {
+                             id: "1",
+                             type: "moons",
+                             links: {self: "http://test.host/api/v1/moons/1"},
+                             attributes: {name: "Titan", description: "Best known of the Saturn moons."},
+                             relationships: {
+                               planet: {links: {self: "http://test.host/api/v1/moons/1/relationships/planet", related: "http://test.host/api/v1/moons/1/planet"}},
+                               craters: {links: {self: "http://test.host/api/v1/moons/1/relationships/craters", related: "http://test.host/api/v1/moons/1/craters"}}}
+                             }
+                           }, json_response)
+   end
 
+   def test_get_related_resources_with_select_some_db_columns
+     PlanetResource.paginator :paged
+     original_config = JSONAPI.configuration.dup
+     JSONAPI.configuration.top_level_meta_include_record_count = true
+     JSONAPI.configuration.json_key_format = :dasherized_key
+     get :get_related_resources, {planet_id: '1', relationship: 'moons', source: 'api/v1/planets'}
+     assert_response :success
+     assert_equal 1, json_response['meta']['record-count']
+   ensure
+     JSONAPI.configuration = original_config
    end
 end
 
@@ -3004,23 +3148,24 @@ class Api::V1::CratersControllerTest < ActionController::TestCase
   def test_get_related_resources
     get :get_related_resources, {moon_id: '1', relationship: 'craters', source: "api/v1/moons"}
     assert_response :success
-    assert_hash_equals json_response,
-                      {
-                        data: [
-                          {id:"A4D3",
-                           type:"craters",
-                           links:{self: "http://test.host/craters/A4D3"},
-                           attributes:{code: "A4D3", description: "Small crater"},
-                           relationships:{moon: {links: {self: "http://test.host/craters/A4D3/relationships/moon", related: "http://test.host/craters/A4D3/moon"}}}
-                          },
-                          {id: "S56D",
-                           type: "craters",
-                           links:{self: "http://test.host/craters/S56D"},
-                           attributes:{code: "S56D", description: "Very large crater"},
-                           relationships:{moon: {links: {self: "http://test.host/craters/S56D/relationships/moon", related: "http://test.host/craters/S56D/moon"}}}
-                          }
-                        ]
-                      }
+    assert_hash_equals({
+                         data: [
+                           {
+                             id:"A4D3",
+                             type:"craters",
+                             links:{self: "http://test.host/api/v1/craters/A4D3"},
+                             attributes:{code: "A4D3", description: "Small crater"},
+                             relationships:{moon: {links: {self: "http://test.host/api/v1/craters/A4D3/relationships/moon", related: "http://test.host/api/v1/craters/A4D3/moon"}}}
+                           },
+                           {
+                             id: "S56D",
+                             type: "craters",
+                             links:{self: "http://test.host/api/v1/craters/S56D"},
+                             attributes:{code: "S56D", description: "Very large crater"},
+                             relationships:{moon: {links: {self: "http://test.host/api/v1/craters/S56D/relationships/moon", related: "http://test.host/api/v1/craters/S56D/moon"}}}
+                           }
+                         ]
+                       }, json_response)
   end
 
   def test_show_relationship
@@ -3029,5 +3174,109 @@ class Api::V1::CratersControllerTest < ActionController::TestCase
     assert_response :success
     assert_equal "moons", json_response['data']['type']
     assert_equal "1", json_response['data']['id']
+  end
+end
+
+class CarsControllerTest < ActionController::TestCase
+  def setup
+    JSONAPI.configuration.json_key_format = :camelized_key
+  end
+
+  def test_create_sti
+    set_content_type_header!
+    post :create,
+         {
+           data: {
+             type: 'cars',
+             attributes: {
+               make: 'Toyota',
+               model: 'Tercel',
+               serialNumber: 'asasdsdadsa13544235',
+               driveLayout: 'FWD'
+             }
+           }
+         }
+
+    assert_response :created
+    assert json_response['data'].is_a?(Hash)
+    assert_equal 'cars', json_response['data']['type']
+    assert_equal 'Toyota', json_response['data']['attributes']['make']
+    assert_equal 'FWD', json_response['data']['attributes']['driveLayout']
+  end
+end
+
+class VehiclesControllerTest < ActionController::TestCase
+  def setup
+    JSONAPI.configuration.json_key_format = :camelized_key
+  end
+
+  def test_immutable_create_not_supported
+    set_content_type_header!
+
+    assert_raises ActionController::UrlGenerationError do
+      post :create,
+           {
+             data: {
+               type: 'cars',
+               attributes: {
+                 make: 'Toyota',
+                 model: 'Corrola',
+                 serialNumber: 'dsvffsfv',
+                 driveLayout: 'FWD'
+               }
+             }
+           }
+    end
+  end
+
+  def test_immutable_update_not_supported
+    set_content_type_header!
+
+    assert_raises ActionController::UrlGenerationError do
+      patch :update,
+            data: {
+              id: '1',
+              type: 'cars',
+              attributes: {
+                make: 'Toyota',
+              }
+            }
+    end
+  end
+end
+
+class Api::V7::ClientsControllerTest < ActionController::TestCase
+  def test_get_namespaced_model_not_matching_resource_using_model_hint
+    get :index
+    assert_response :success
+    assert_equal 'clients', json_response['data'][0]['type']
+  ensure
+    Api::V7::ClientResource._model_hints['api/v7/customer'] = 'clients'
+  end
+
+  def test_get_namespaced_model_not_matching_resource_not_using_model_hint
+    Api::V7::ClientResource._model_hints.delete('api/v7/customer')
+    get :index
+    assert_response :success
+    assert_equal 'customers', json_response['data'][0]['type']
+  ensure
+    Api::V7::ClientResource._model_hints['api/v7/customer'] = 'clients'
+  end
+end
+
+class Api::V7::CustomersControllerTest < ActionController::TestCase
+  def test_get_namespaced_model_matching_resource
+    get :index
+    assert_response :success
+    assert_equal 'customers', json_response['data'][0]['type']
+  end
+end
+
+class Api::V7::CategoriesControllerTest < ActionController::TestCase
+  def test_uncaught_error_in_controller
+
+    get :show, {id: '1'}
+    assert_response 500
+    assert_match /Internal Server Error/, json_response['errors'][0]['detail']
   end
 end

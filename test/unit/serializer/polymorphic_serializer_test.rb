@@ -27,7 +27,7 @@ class PolymorphismTest < ActionDispatch::IntegrationTest
     serialized_data = JSONAPI::ResourceSerializer.new(
       PersonResource,
       include: %w(vehicles)
-    ).serialize_to_hash(PersonResource.new(@person))
+    ).serialize_to_hash(PersonResource.new(@person, nil))
 
     assert_hash_equals(
       {
@@ -88,7 +88,7 @@ class PolymorphismTest < ActionDispatch::IntegrationTest
             },
             attributes: {
               make: 'Mazda',
-              vehicleModel: 'Miata MX5',
+              model: 'Miata MX5',
               driveLayout: 'Front Engine RWD',
               serialNumber: '32432adfsfdysua'
             },
@@ -109,7 +109,7 @@ class PolymorphismTest < ActionDispatch::IntegrationTest
             },
             attributes: {
               make: 'Chris-Craft',
-              vehicleModel: 'Launch 20',
+              model: 'Launch 20',
               lengthAtWaterLine: '15.5ft',
               serialNumber: '434253JJJSD'
             },
@@ -132,7 +132,7 @@ class PolymorphismTest < ActionDispatch::IntegrationTest
     serialized_data = JSONAPI::ResourceSerializer.new(
       PictureResource,
       include: %w(imageable)
-    ).serialize_to_hash(@pictures.map { |p| PictureResource.new p })
+    ).serialize_to_hash(@pictures.map { |p| PictureResource.new p, nil })
 
     assert_hash_equals(
       {

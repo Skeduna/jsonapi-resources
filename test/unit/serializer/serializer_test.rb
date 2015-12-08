@@ -23,7 +23,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
 
     serialized = JSONAPI::ResourceSerializer.new(
       PostResource,
-      base_url: 'http://example.com').serialize_to_hash(PostResource.new(@post)
+      base_url: 'http://example.com').serialize_to_hash(PostResource.new(@post, nil)
     )
 
     assert_hash_equals(
@@ -118,7 +118,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
       },
       JSONAPI::ResourceSerializer.new(Api::V1::PostResource,
                                       base_url: 'http://example.com').serialize_to_hash(
-        Api::V1::PostResource.new(@post))
+        Api::V1::PostResource.new(@post, nil))
     )
   end
 
@@ -146,7 +146,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
         }
       },
       JSONAPI::ResourceSerializer.new(PostResource,
-                                      fields: {posts: [:id, :title, :author]}).serialize_to_hash(PostResource.new(@post))
+                                      fields: {posts: [:id, :title, :author]}).serialize_to_hash(PostResource.new(@post, nil))
     )
   end
 
@@ -154,7 +154,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
     serialized = JSONAPI::ResourceSerializer.new(
       PostResource,
       include: ['author']
-    ).serialize_to_hash(PostResource.new(@post))
+    ).serialize_to_hash(PostResource.new(@post, nil))
 
     assert_hash_equals(
       {
@@ -256,7 +256,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
       PostResource,
       include: ['author'],
       key_formatter: UnderscoredKeyFormatter
-    ).serialize_to_hash(PostResource.new(@post))
+    ).serialize_to_hash(PostResource.new(@post, nil))
 
     assert_hash_equals(
       {
@@ -525,7 +525,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
           ]
       },
       JSONAPI::ResourceSerializer.new(PostResource,
-                                      include: ['comments', 'comments.tags']).serialize_to_hash(PostResource.new(@post))
+                                      include: ['comments', 'comments.tags']).serialize_to_hash(PostResource.new(@post, nil))
     )
   end
 
@@ -533,7 +533,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
     serialized = JSONAPI::ResourceSerializer.new(
       PersonResource,
       include: ['comments']
-    ).serialize_to_hash(PersonResource.new(@fred))
+    ).serialize_to_hash(PersonResource.new(@fred, nil))
 
     assert_hash_equals(
       {
@@ -656,7 +656,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
 
     posts = []
     Post.find(1, 2).each do |post|
-      posts.push PostResource.new(post)
+      posts.push PostResource.new(post, nil)
     end
 
     JSONAPI.configuration.always_include_to_one_linkage_data = true
@@ -972,7 +972,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
 
     posts = []
     Post.find(1, 2).each do |post|
-      posts.push PostResource.new(post)
+      posts.push PostResource.new(post, nil)
     end
 
     assert_hash_equals(
@@ -1247,7 +1247,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
 
     posts = []
     Post.find(1, 2).each do |post|
-      posts.push PostResource.new(post)
+      posts.push PostResource.new(post, nil)
     end
 
     assert_hash_equals(
@@ -1476,13 +1476,13 @@ class SerializerTest < ActionDispatch::IntegrationTest
       JSONAPI::ResourceSerializer.new(ExpenseEntryResource,
                                       include: ['iso_currency', 'employee'],
                                       fields: {people: [:id, :name, :email, :date_joined]}).serialize_to_hash(
-        ExpenseEntryResource.new(@expense_entry))
+        ExpenseEntryResource.new(@expense_entry, nil))
     )
   end
 
   def test_serializer_empty_links_null_and_array
     planet_hash = JSONAPI::ResourceSerializer.new(PlanetResource).serialize_to_hash(
-      PlanetResource.new(Planet.find(8)))
+      PlanetResource.new(Planet.find(8), nil))
 
     assert_hash_equals(
       {
@@ -1523,7 +1523,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
   def test_serializer_include_with_empty_links_null_and_array
     planets = []
     Planet.find(7, 8).each do |planet|
-      planets.push PlanetResource.new(planet)
+      planets.push PlanetResource.new(planet, nil)
     end
 
     planet_hash = JSONAPI::ResourceSerializer.new(PlanetResource,
@@ -1619,7 +1619,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
     original_config = JSONAPI.configuration.dup
     JSONAPI.configuration.json_key_format = :underscored_key
 
-    preferences = PreferencesResource.new(Preferences.find(1))
+    preferences = PreferencesResource.new(Preferences.find(1), nil)
 
     assert_hash_equals(
       {
@@ -1658,7 +1658,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
     original_config = JSONAPI.configuration.dup
     JSONAPI.configuration.json_key_format = :underscored_key
 
-    facts = FactResource.new(Fact.find(1))
+    facts = FactResource.new(Fact.find(1), nil)
 
     assert_hash_equals(
       {
@@ -1691,7 +1691,7 @@ class SerializerTest < ActionDispatch::IntegrationTest
     serialized = JSONAPI::ResourceSerializer.new(
       Api::V5::AuthorResource,
       include: ['author_detail']
-    ).serialize_to_hash(Api::V5::AuthorResource.new(Person.find(1)))
+    ).serialize_to_hash(Api::V5::AuthorResource.new(Person.find(1), nil))
 
     assert_hash_equals(
       {
@@ -1734,6 +1734,212 @@ class SerializerTest < ActionDispatch::IntegrationTest
         ]
       },
       serialized
+    )
+  end
+
+  def test_serializer_resource_meta_fixed_value
+    Api::V5::AuthorResource.class_eval do
+      def meta(options)
+        {
+          fixed: 'Hardcoded value',
+          computed: "#{self.class._type.to_s}: #{options[:serializer].link_builder.self_link(self)}"
+        }
+      end
+    end
+
+    serialized = JSONAPI::ResourceSerializer.new(
+      Api::V5::AuthorResource,
+      include: ['author_detail']
+    ).serialize_to_hash(Api::V5::AuthorResource.new(Person.find(1), nil))
+
+    assert_hash_equals(
+      {
+        data: {
+          type: 'authors',
+          id: '1',
+          attributes: {
+            name: 'Joe Author',
+          },
+          links: {
+            self: '/api/v5/authors/1'
+          },
+          relationships: {
+            posts: {
+              links: {
+                self: '/api/v5/authors/1/relationships/posts',
+                related: '/api/v5/authors/1/posts'
+              }
+            },
+            authorDetail: {
+              links: {
+                self: '/api/v5/authors/1/relationships/authorDetail',
+                related: '/api/v5/authors/1/authorDetail'
+              },
+              data: {type: 'authorDetails', id: '1'}
+            }
+          },
+          meta: {
+            fixed: 'Hardcoded value',
+            computed: 'authors: /api/v5/authors/1'
+          }
+        },
+        included: [
+          {
+            type: 'authorDetails',
+            id: '1',
+            attributes: {
+              authorStuff: 'blah blah'
+            },
+            links: {
+              self: '/api/v5/authorDetails/1'
+            }
+          }
+        ]
+      },
+      serialized
+    )
+  ensure
+    Api::V5::AuthorResource.class_eval do
+      def meta(options)
+        # :nocov:
+        { }
+        # :nocov:
+      end
+    end
+  end
+
+  def test_serialize_model_attr
+    @make = Make.first
+    serialized = JSONAPI::ResourceSerializer.new(
+      MakeResource,
+    ).serialize_to_hash(MakeResource.new(@make, nil))
+
+    assert_hash_equals(
+      {
+        "model" => "A model attribute"
+      },
+      serialized[:data]["attributes"]
+    )
+  end
+
+  def test_confusingly_named_attrs
+    @wp = WebPage.first
+    serialized = JSONAPI::ResourceSerializer.new(
+      WebPageResource,
+    ).serialize_to_hash(WebPageResource.new(@wp, nil))
+
+    assert_hash_equals(
+      {
+        :data=>{
+          "id"=>"#{@wp.id}",
+          "type"=>"webPages",
+          "links"=>{
+            :self=>"/webPages/#{@wp.id}"
+          },
+          "attributes"=>{
+            "href"=>"http://example.com",
+            "link"=>"http://link.example.com"
+          }
+        }
+      },
+      serialized
+    )
+  end
+
+  def test_questionable_has_one
+    # has_one
+    out, err = capture_io do
+      eval <<-CODE
+          class ::Questionable < ActiveRecord::Base
+            has_one :link
+            has_one :href
+          end
+          class ::QuestionableResource < JSONAPI::Resource
+            model_name '::Questionable'
+            has_one :link
+            has_one :href
+          end
+          cn = ::Questionable.new id: 1
+          puts JSONAPI::ResourceSerializer.new(
+            ::QuestionableResource,
+          ).serialize_to_hash(::QuestionableResource.new(cn, nil))
+      CODE
+    end
+    assert err.blank?
+    assert_equal(
+      {
+        :data=>{
+          "id"=>"1",
+          "type"=>"questionables",
+          "links"=>{
+            :self=>"/questionables/1"
+          },
+          "relationships"=>{
+            "link"=>{
+              :links=>{
+                :self=>"/questionables/1/relationships/link",
+                :related=>"/questionables/1/link"
+              }
+            },
+            "href"=>{
+              :links=>{
+                :self=>"/questionables/1/relationships/href",
+                :related=>"/questionables/1/href"
+              }
+            }
+          }
+        }
+      }.to_s,
+      out.strip
+    )
+  end
+
+  def test_questionable_has_many
+    # has_one
+    out, err = capture_io do
+      eval <<-CODE
+          class ::Questionable2 < ActiveRecord::Base
+            self.table_name = 'questionables'
+            has_many :links
+            has_many :hrefs
+          end
+          class ::Questionable2Resource < JSONAPI::Resource
+            model_name '::Questionable2'
+            has_many :links
+            has_many :hrefs
+          end
+          cn = ::Questionable2.new id: 1
+          puts JSONAPI::ResourceSerializer.new(
+            ::Questionable2Resource,
+          ).serialize_to_hash(::Questionable2Resource.new(cn, nil))
+      CODE
+    end
+    assert err.blank?
+    assert_equal(
+      {
+        :data=>{
+          "id"=>"1",
+          "type"=>"questionable2s",
+          "links"=>{
+            :self=>"/questionable2s/1"
+          },
+          "relationships"=>{
+            "links"=>{
+              :links=>{
+                :self=>"/questionable2s/1/relationships/links",
+                :related=>"/questionable2s/1/links"
+              }
+            },
+            "hrefs"=>{
+              :links=>{
+                :self=>"/questionable2s/1/relationships/hrefs",
+                :related=>"/questionable2s/1/hrefs"
+              }
+            }
+          }
+        }
+      }.to_s,
+      out.strip
     )
   end
 end

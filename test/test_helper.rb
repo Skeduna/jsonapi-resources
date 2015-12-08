@@ -39,6 +39,7 @@ class TestApp < Rails::Application
   #Raise errors on unsupported parameters
   config.action_controller.action_on_unpermitted_parameters = :raise
 
+  ActiveRecord::Schema.verbose = false
   config.active_record.schema_format = :none
   config.active_support.test_order = :random
 
@@ -104,7 +105,6 @@ module Pets
     end
 
     class CatResource < JSONAPI::Resource
-      attribute :id
       attribute :name
       attribute :breed
 
@@ -116,6 +116,7 @@ end
 JSONAPI.configuration.route_format = :underscored_route
 TestApp.routes.draw do
   jsonapi_resources :people
+  jsonapi_resources :special_people
   jsonapi_resources :comments
   jsonapi_resources :firms
   jsonapi_resources :tags
@@ -137,8 +138,13 @@ TestApp.routes.draw do
   jsonapi_resources :pictures
   jsonapi_resources :documents
   jsonapi_resources :products
+  jsonapi_resources :vehicles
+  jsonapi_resources :cars
+  jsonapi_resources :boats
+  jsonapi_resources :flat_posts
 
-  
+  jsonapi_resources :books
+  jsonapi_resources :authors
 
   namespace :api do
     namespace :v1 do
@@ -223,6 +229,9 @@ TestApp.routes.draw do
       jsonapi_resources :customers
       jsonapi_resources :purchase_orders
       jsonapi_resources :line_items
+      jsonapi_resources :categories
+
+      jsonapi_resources :clients
     end
 
     namespace :v8 do

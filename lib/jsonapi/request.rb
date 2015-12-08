@@ -22,7 +22,7 @@ module JSONAPI
       @include_directives = nil
       @paginator = nil
       @id = nil
-      @server_error_callbacks = []
+      @server_error_callbacks = options.fetch(:server_error_callbacks, [])
 
       setup_action(@params)
     end
@@ -463,7 +463,7 @@ module JSONAPI
 
       unless links_object[:id].nil?
         resource = self.resource_klass || Resource
-        relationship_resource = resource.resource_for(@resource_klass.module_path + unformat_key(links_object[:type]).to_s)
+        relationship_resource = resource.resource_for(unformat_key(links_object[:type]).to_s)
         relationship_id = relationship_resource.verify_key(links_object[:id], @context)
         if relationship.polymorphic?
           { id: relationship_id, type: unformat_key(links_object[:type].to_s) }
@@ -609,11 +609,6 @@ module JSONAPI
 
     def parse_single_replace_operation(data, keys, id_key_presence_check_required: true)
       fail JSONAPI::Exceptions::MissingKey.new if data[:id].nil?
-
-      type = data[:type]
-      if type.nil? || type != format_key(@resource_klass._type).to_s
-        fail JSONAPI::Exceptions::ParameterMissing.new(:type)
-      end
 
       key = data[:id]
       if id_key_presence_check_required && !keys.include?(key)

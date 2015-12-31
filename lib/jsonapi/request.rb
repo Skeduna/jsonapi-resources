@@ -82,7 +82,7 @@ module JSONAPI
     end
 
     def setup_show_relationship_action(params)
-      add_show_relationship_operation(params[:relationship], params.require(@resource_klass._as_parent_key))
+      add_show_relationship_operation(params[:relationship], params.require(@resource_klass._as_parent_key_id))
     end
 
     def setup_create_action(params)

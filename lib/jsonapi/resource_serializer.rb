@@ -57,6 +57,7 @@ module JSONAPI
     end
 
     def serialize_to_links_hash(source, requested_relationship)
+      #binding.pry
       if requested_relationship.is_a?(JSONAPI::Relationship::ToOne)
         data = to_one_linkage(source, requested_relationship)
       else
@@ -258,7 +259,9 @@ module JSONAPI
     end
 
     def to_many_linkage(source, relationship)
+
       linkage = []
+      #binding.pry
       linkage_types_and_values = foreign_key_types_and_values(source, relationship)
 
       linkage_types_and_values.each do |type, value|
@@ -287,6 +290,7 @@ module JSONAPI
     end
 
     def link_object(source, relationship, include_linkage = false)
+      #binding.pry
       if relationship.is_a?(JSONAPI::Relationship::ToOne)
         link_object_to_one(source, relationship, include_linkage)
       elsif relationship.is_a?(JSONAPI::Relationship::ToMany)

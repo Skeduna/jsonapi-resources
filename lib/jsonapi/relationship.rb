@@ -52,7 +52,12 @@ module JSONAPI
 
       def initialize(name, options = {})
         super
+
         @class_name = options.fetch(:class_name, name.to_s.camelize)
+        puts "ToOne: #{class_name.underscore.pluralize.to_sym} name #{name}"
+        #puts "ToOne: #{class_name.underscore.pluralize.to_sym}"
+        binding.pry if "#{class_name.underscore.pluralize.to_sym}" == 'api/v1/students/exams'
+        #myname = "#{class_name.to_s.underscore.singularize}_resource".camelize
         @type = class_name.underscore.pluralize.to_sym
         @foreign_key ||= "#{name}_guid".to_sym
         @foreign_key_on = options.fetch(:foreign_key_on, :self)
@@ -69,8 +74,10 @@ module JSONAPI
 
     class ToMany < Relationship
       def initialize(name, options = {})
+
         super
         @class_name = options.fetch(:class_name, name.to_s.camelize.singularize)
+        puts "ToMany: #{class_name.underscore.pluralize.to_sym} name #{name}"
         @type = class_name.underscore.pluralize.to_sym
         @foreign_key ||= "#{name.to_s.singularize}_guids".to_sym
       end

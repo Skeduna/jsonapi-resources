@@ -36,7 +36,7 @@ module JSONAPI
       @operations.each do |operation|
         @transactional |= operation.transactional
       end
-
+      #binding.pry
       run_callbacks :operations do
         transaction do
           # Links and meta data global to the set of operations
@@ -77,13 +77,13 @@ module JSONAPI
     def rollback
     end
 
-    # If overriding in child operation processors, call operation.apply and 
+    # If overriding in child operation processors, call operation.apply and
     # catch errors that should be handled before JSONAPI::Exceptions::Error
     # and other unprocessed exceptions
     def process_operation(operation)
-      with_default_handling do 
+      with_default_handling do
         operation.apply
-      end        
+      end
     end
 
     def with_default_handling(&block)
@@ -104,7 +104,7 @@ module JSONAPI
     end
 
     def safe_run_callback(callback, error)
-      begin 
+      begin
         callback.call(error)
       rescue => e
         Rails.logger.error { "Error in error handling callback: #{e.message} #{e.backtrace.join("\n")}" }

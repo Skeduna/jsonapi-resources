@@ -110,6 +110,7 @@ module JSONAPI
           when JSONAPI::ResourcesOperationResult
             serializer.serialize_to_hash(result.resources)
           when JSONAPI::LinksObjectOperationResult
+            #binding.pry
             serializer.serialize_to_links_hash(result.parent_resource,
                                                result.relationship)
           when JSONAPI::OperationResult

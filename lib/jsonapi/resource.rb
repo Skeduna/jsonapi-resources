@@ -302,10 +302,13 @@ module JSONAPI
       end
 
       def resource_for(type)
+
         type_with_module = type.include?('/') ? type : module_path + type
+
 
         resource_name = _resource_name_from_type(type_with_module)
         resource = resource_name.safe_constantize if resource_name
+        puts "resource_for type: #{type} type_with_module #{type_with_module} resource #{resource}"
         if resource.nil?
           fail NameError, "JSONAPI: Could not find resource '#{type}'. (Class #{resource_name} not found)"
         end

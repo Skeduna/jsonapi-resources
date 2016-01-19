@@ -44,6 +44,7 @@ module ActionDispatch
         end
 
         def jsonapi_relationships(options = {})
+          #puts "routes:jsonapi_relationships @resource_type #{@resource_type} resource_for: #{JSONAPI::Resource.resource_for(resource_type_with_module_prefix(@resource_type))}"
           res = JSONAPI::Resource.resource_for(resource_type_with_module_prefix(@resource_type))
           res._relationships.each do |relationship_name, relationship|
             if relationship.is_a?(JSONAPI::Relationship::ToMany)
@@ -170,13 +171,18 @@ module ActionDispatch
         end
 
         def jsonapi_related_resource(*relationship)
+          #puts "relationship #{relationship.first}"
+
           source = JSONAPI::Resource.resource_for(resource_type_with_module_prefix)
           options = relationship.extract_options!.dup
 
           relationship_name = relationship.first
+          # binding.pry if relationship.first == :institution_exam
           relationship = source._relationships[relationship_name]
 
           formatted_relationship_name = format_route(relationship.name)
+
+          #puts "routes:jsonapi_related_resource relationship #{relationship.first} relationship_name #{relationship_name}}"
 
           if relationship.polymorphic?
             options[:controller] ||= relationship.class_name.underscore.pluralize
@@ -191,6 +197,7 @@ module ActionDispatch
         end
 
         def jsonapi_related_resources(*relationship)
+
           source = JSONAPI::Resource.resource_for(resource_type_with_module_prefix)
           options = relationship.extract_options!.dup
 
@@ -210,7 +217,11 @@ module ActionDispatch
 
         def resource_type_with_module_prefix(resource = nil)
           resource_name = resource || @scope[:jsonapi_resource]
-          [@scope[:module], resource_name].compact.collect(&:to_s).join('/')
+          if !!(resource =~ /^api\/v1/)
+            resource_name
+          else
+            [@scope[:module], resource_name].compact.collect(&:to_s).join('/')
+          end
         end
       end
     end

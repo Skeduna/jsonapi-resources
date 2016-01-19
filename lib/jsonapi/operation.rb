@@ -102,7 +102,7 @@ module JSONAPI
 
     def apply
       parent_resource = resource_klass.find_by_key(@parent_key, context: @context)
-
+      #binding.pry
       return JSONAPI::LinksObjectOperationResult.new(:ok,
                                                      parent_resource,
                                                      resource_klass._relationship(@relationship_type))

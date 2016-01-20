@@ -26,17 +26,15 @@ module JSONAPI
     end
 
     def relation_for_type(name, class_name, options)
-
       #if options has classname and does not equal the object.name then
       #then parse from class name.
       if class_name == name
         class_name
       else
-          #   zjsonb_publishers
-          # {:class_name=>"Api::V1::Zjsonbs::Publisher", :parent_resource=>Api::V1::Zjsonas::BookResource}
+        # Options: {:class_name=>"Api::V1::Zjsonbs::Publisher", :parent_resource=>Api::V1::Zjsonas::BookResource}
+        # Desired: zjsonb_publishers
 
         if options.has_key?(:class_name) && options.has_key?(:parent_resource)
-
           class_array = class_name.downcase.split('::')
           parent_array = options[:parent_resource].to_s.downcase.split('::')
           parent_array.each do |item|
@@ -47,7 +45,7 @@ module JSONAPI
           if class_array.empty?
             'UNKONWN RELATION TYPE 48'
           else
-            class_array.join('_')
+            class_array.map(&:singularize).join('_')
           end
         else
           'UNKONWN RELATION TYPE 53'

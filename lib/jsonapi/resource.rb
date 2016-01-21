@@ -208,6 +208,11 @@ module JSONAPI
     def _replace_to_one_link(relationship_type, relationship_key_value)
       relationship = self.class._relationships[relationship_type]
 
+      resource = Resource.resource_for(self.class._relationships[relationship_type].class_name)
+
+      association_id = resource._model_name.to_s.classify.constantize.where(guid: relationship_key_value).pluck(:id).first
+      @model.send("#{relationship.relation_name(Symbol)}_id=", association_id)
+
       send("#{relationship.foreign_key}=", relationship_key_value)
       @save_needed = true
 

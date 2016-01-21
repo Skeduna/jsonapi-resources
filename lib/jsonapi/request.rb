@@ -29,7 +29,7 @@ module JSONAPI
 
     def setup_action(params)
       return if params.nil?
-
+      #binding.pry
       @resource_klass ||= Resource.resource_for(params[:controller]) if params[:controller]
 
       unless params.nil?
@@ -456,6 +456,8 @@ module JSONAPI
     end
 
     def parse_to_one_relationship(link_value, relationship)
+
+
       if link_value.nil?
         linkage = nil
       else
@@ -463,13 +465,19 @@ module JSONAPI
       end
 
       links_object = parse_to_one_links_object(linkage)
+
       if !relationship.polymorphic? && links_object[:type] && (links_object[:type].to_s != relationship.type.to_s)
         fail JSONAPI::Exceptions::TypeMismatch.new(links_object[:type])
       end
 
       unless links_object[:id].nil?
+        # binding.pry if links_object[:type] == 'zjsonb_publishers'
         resource = self.resource_klass || Resource
-        relationship_resource = resource.resource_for(unformat_key(links_object[:type]).to_s)
+        if relationship.class_name.include?('::')
+          relationship_resource = resource.resource_for(relationship.class_name)
+        else
+          relationship_resource = resource.resource_for(unformat_key(links_object[:type]).to_s)
+        end
         relationship_id = relationship_resource.verify_key(links_object[:id], @context)
         if relationship.polymorphic?
           { id: relationship_id, type: unformat_key(links_object[:type].to_s) }

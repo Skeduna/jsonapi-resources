@@ -84,7 +84,7 @@ module JSONAPI
         @class_name = options.fetch(:class_name, name.to_s.camelize)
         #puts "ToOne: #{class_name.underscore.pluralize.to_sym} name #{name}"
         #puts "ToOne: #{class_name.underscore.pluralize.to_sym}"
-        binding.pry if "#{class_name.underscore.pluralize.to_sym}" == 'api/v1/zjsonbs/publishers'
+        #binding.pry if "#{class_name.underscore.pluralize.to_sym}" == 'api/v1/zjsonbs/publishers'
         #myname = "#{class_name.to_s.underscore.singularize}_resource".camelize
         @type = relation_for_type(name.to_s.camelize, @class_name, options).underscore.pluralize.to_sym
         @foreign_key ||= "#{name}_guid".to_sym

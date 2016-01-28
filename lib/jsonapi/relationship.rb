@@ -140,13 +140,16 @@ module JSONAPI
 
         @class_name = relation_class_name(name, options)
         @relation_name = relation_relation_name(name,options)
-        puts "ToOne: parent_resource: #{@parent_resource}, class_name: #{@class_name}, relation_name #{@relation_name}"
+
         #puts "ToOne: #{class_name.underscore.pluralize.to_sym} name #{name}"
         #puts "ToOne: #{class_name.underscore.pluralize.to_sym}"
 
         #myname = "#{class_name.to_s.underscore.singularize}_resource".camelize
-        @type = name.to_s.camelize.singularize.underscore.pluralize.to_sym
+
+        @type = @relation_name.to_s.pluralize.to_sym
+        puts "ToOne: parent_resource: #{@parent_resource}, class_name: #{@class_name}, relation_name #{@relation_name}, type: #{@type}"
         #@type = relation_for_type(name.to_s.camelize, @class_name, options).underscore.pluralize.to_sym
+        #@type = name.to_s.camelize.singularize.underscore.pluralize.to_sym
         @foreign_key ||= "#{relation_name(String)}_guid".to_sym
         @foreign_key_on = options.fetch(:foreign_key_on, :self)
 
@@ -170,13 +173,15 @@ module JSONAPI
         @class_name = relation_class_name(name, options).singularize
         binding.pry if "#{@parent_resource}" == 'Api::V1::InstitutionResource' && "#{@class_name}" == 'Api::V1::Degreerequirement'
         @relation_name = relation_relation_name(name,options)
-        puts "ToMany: parent_resource: #{@parent_resource}, class_name: #{@class_name}, relation_name #{@relation_name}"
         # @class_name = class_name_with_namespace(options[:class_name], name.to_s.camelize)
         #@class_name = class_name_with_namespace(options.fetch(:class_name, name.to_s.camelize.singularize))
         #puts "ToMany: #{class_name.underscore.pluralize.to_sym} name #{name}"
-        @type = name.to_s.camelize.singularize.underscore.pluralize.to_sym
+        @type = @relation_name.to_s.pluralize.to_sym
+
+        puts "ToMany: parent_resource: #{@parent_resource}, class_name: #{@class_name}, relation_name #{@relation_name}, type: #{@type}"
         #relation_for_type(name.to_s.camelize.singularize, @class_name, options).underscore.pluralize.to_sym
         #@type = class_name.underscore.pluralize.to_sym
+        #@type = name.to_s.camelize.singularize.underscore.pluralize.to_sym
         @foreign_key ||= "#{relation_name(String).to_s.singularize}_guids".to_sym
       end
     end

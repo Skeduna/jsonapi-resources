@@ -281,6 +281,7 @@ module JSONAPI
 
     class << self
       def inherited(subclass)
+        subclass._route_hints = (_route_hints || {}).dup
         subclass.abstract(false)
         subclass.immutable(false)
         subclass._attributes = (_attributes || {}).dup
@@ -340,7 +341,7 @@ module JSONAPI
         end
       end
 
-      attr_accessor :_attributes, :_relationships, :_allowed_filters, :_type, :_paginator, :_model_hints
+      attr_accessor :_attributes, :_relationships, :_allowed_filters, :_type, :_paginator, :_model_hints, :_route_hints
 
       def create(context)
         new(create_model, context)
@@ -700,7 +701,11 @@ module JSONAPI
       end
 
       def _model_name
-        _abstract ? '' : @_model_name ||= name.demodulize.sub(/Resource$/, '')
+        if !_route_hints.blank?
+          _abstract ? '' : @_model_name ||= name.deconstantize.sub("#{_route_hints.to_s}",'').singularize + '::' + name.demodulize.sub(/Resource$/, '')
+        else
+          _abstract ? '' : @_model_name ||= name.demodulize.sub(/Resource$/, '')
+        end
       end
 
       def _primary_key

@@ -302,6 +302,10 @@ module JSONAPI
         type = subclass.name.demodulize.sub(/Resource$/, '').underscore
         subclass._type = type.pluralize.to_sym
 
+        if !_route_hints.blank?
+          subclass._type_from_class = subclass.name.sub(/Resource$/, '').sub(_route_hints + '::','').split('::').map(&:singularize).join('_').downcase.pluralize
+        end
+
         subclass.attribute :id, format: :id
 
         check_reserved_resource_name(subclass._type, subclass.name)
@@ -341,7 +345,7 @@ module JSONAPI
         end
       end
 
-      attr_accessor :_attributes, :_relationships, :_allowed_filters, :_type, :_paginator, :_model_hints, :_route_hints
+      attr_accessor :_attributes, :_relationships, :_allowed_filters, :_type, :_paginator, :_model_hints, :_route_hints, :_type_from_class,
 
       def create(context)
         new(create_model, context)

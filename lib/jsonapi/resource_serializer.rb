@@ -120,7 +120,11 @@ module JSONAPI
       id_format = 'id' if id_format == :default
       obj_hash['id'] = format_value(source.id, id_format)
 
-      obj_hash['type'] = format_key(source.class._type.to_s)
+      if source.class._route_hints.blank?
+        obj_hash['type'] = format_key(source.class._type.to_s)
+      else
+        obj_hash['type'] = source.class._type_from_class
+      end
 
       links = relationship_links(source)
       obj_hash['links'] = links unless links.empty?

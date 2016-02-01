@@ -44,7 +44,6 @@ module ActionDispatch
         end
 
         def jsonapi_relationships(options = {})
-          #puts "routes:jsonapi_relationships @resource_type #{@resource_type} resource_for: #{JSONAPI::Resource.resource_for(resource_type_with_module_prefix(@resource_type))}"
           res = JSONAPI::Resource.resource_for(resource_type_with_module_prefix(@resource_type))
           res._relationships.each do |relationship_name, relationship|
             if relationship.is_a?(JSONAPI::Relationship::ToMany)
@@ -62,7 +61,9 @@ module ActionDispatch
           res = JSONAPI::Resource.resource_for(resource_type_with_module_prefix(@resource_type))
 
           options = resources.extract_options!.dup
+
           options[:controller] ||= @resource_type
+          puts "jsonapi_resources #{options[:controller]}"
           options.merge!(res.routing_resource_options)
 
           options[:param] = :id
@@ -118,7 +119,7 @@ module ActionDispatch
           options[:controller] ||= res._type.to_s
 
           methods = links_methods(options)
-
+          puts "route: jsonapi_link"
           if methods.include?(:show)
             match "relationships/#{formatted_relationship_name}", controller: options[:controller],
                                                                   action: 'show_relationship', relationship: link_type.to_s, via: [:get]
@@ -141,12 +142,12 @@ module ActionDispatch
           link_type = links.first
           formatted_relationship_name = format_route(link_type)
           options = links.extract_options!.dup
-
           res = JSONAPI::Resource.resource_for(resource_type_with_module_prefix)
+
           options[:controller] ||= res._type.to_s
 
           methods = links_methods(options)
-          #puts "jsonapi_links: name: #{formatted_relationship_name} link: #{link_type.to_s} controller: #{options[:controller]}"
+
           if methods.include?(:show)
             match "relationships/#{formatted_relationship_name}", controller: options[:controller],
                                                                   action: 'show_relationship', relationship: link_type.to_s, via: [:get]
@@ -174,23 +175,13 @@ module ActionDispatch
           source = JSONAPI::Resource.resource_for(resource_type_with_module_prefix)
           options = relationship.extract_options!.dup
           relationship_name = relationship.first
-          #binding.pry if relationship.first == :zjsonb_publisher
           relationship = source._relationships[relationship_name]
-
           formatted_relationship_name = format_route(relationship.name)
+          source_by_type = resource_type_with_module_prefix(source._type)
+          options[:controller] ||= resource_controller_from_relationship(relationship)
 
-          if relationship.polymorphic?
-            options[:controller] ||= relationship.class_name.underscore.pluralize
-          # elsif relationship.class_name.include?("::")
-          #   options[:controller] ||= relationship.class_name.to_s.downcase.gsub('api::v1::','').split('::').map(&:singularize).join('_').pluralize
-          else
-            related_resource = JSONAPI::Resource.resource_for(resource_type_with_module_prefix(relationship.class_name.underscore.pluralize))
-            options[:controller] ||= related_resource._type.to_s
-          end
-          #binding.pry if relationship.class_name.underscore.pluralize == "api/v1/zjsonbs/publishers"
-          #puts "jsonapi_related_resource source: #{resource_type_with_module_prefix(source._type)}, controller: #{options[:controller]}, relationship: #{formatted_relationship_name}"
           match "#{formatted_relationship_name}", controller: options[:controller],
-                                                  relationship: relationship.name, source: resource_type_with_module_prefix(source._type),
+                                                  relationship: relationship.name, source: source_by_type,
                                                   action: 'get_related_resource', via: [:get]
         end
 
@@ -203,16 +194,28 @@ module ActionDispatch
           relationship = source._relationships[relationship_name]
 
           formatted_relationship_name = format_route(relationship.name)
-          related_resource = JSONAPI::Resource.resource_for(resource_type_with_module_prefix(relationship.class_name.underscore))
-          options[:controller] ||= related_resource._type.to_s
-          #puts "jsonapi_related_resources source: #{resource_type_with_module_prefix(source._type)}, controller: #{options[:controller]}, relationship: #{formatted_relationship_name}"
+          source_by_type = resource_type_with_module_prefix(source._type)
+          options[:controller] ||= resource_controller_from_relationship(relationship)
 
           match "#{formatted_relationship_name}", controller: options[:controller],
-                                                  relationship: relationship.name, source: resource_type_with_module_prefix(source._type),
+                                                  relationship: relationship.name, source: source_by_type,
                                                   action: 'get_related_resources', via: [:get]
         end
 
         private
+
+        def resource_controller_from_relationship(relationship)
+          if relationship.route_namespace.blank?
+            related_resource = JSONAPI::Resource.resource_for(resource_type_with_module_prefix(relationship.class_name.underscore.pluralize))
+            related_resource._type.to_s
+          else
+            if relationship.namespace_hint.blank?
+               "/" + relationship.class_name.underscore.pluralize
+            else
+              relationship.class_name.sub(relationship.route_namespace + '::','').underscore.pluralize
+            end
+          end
+        end
 
         def resource_type_with_module_prefix(resource = nil)
           resource_name = resource || @scope[:jsonapi_resource]

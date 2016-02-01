@@ -2,7 +2,7 @@ module JSONAPI
   class Relationship
     attr_reader :acts_as_set, :foreign_key, :type, :options, :name,
                 :class_name, :polymorphic, :always_include_linkage_data,
-                :parent_resource
+                :parent_resource, :namespace_hint, :route_namespace
 
     def initialize(name, options = {})
       @name = name.to_s
@@ -171,7 +171,7 @@ module JSONAPI
         #puts "ToMany: parent_resource: #{@parent_resource}"
         #binding.pry
         @class_name = relation_class_name(name, options).singularize
-        binding.pry if "#{@parent_resource}" == 'Api::V1::InstitutionResource' && "#{@class_name}" == 'Api::V1::Degreerequirement'
+        #binding.pry if "#{@parent_resource}" == 'Api::V1::InstitutionResource' && "#{@class_name}" == 'Api::V1::Degreerequirement'
         @relation_name = relation_relation_name(name,options)
         # @class_name = class_name_with_namespace(options[:class_name], name.to_s.camelize)
         #@class_name = class_name_with_namespace(options.fetch(:class_name, name.to_s.camelize.singularize))

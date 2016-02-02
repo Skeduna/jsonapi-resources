@@ -303,7 +303,7 @@ module JSONAPI
         subclass._type = type.pluralize.to_sym
 
         if !_route_hints.blank?
-          subclass._type_from_class = subclass.name.sub(/Resource$/, '').sub(_route_hints + '::','').split('::').map(&:singularize).join('_').downcase.pluralize
+          subclass._type_from_class = subclass.name.sub(/Resource$/, '').sub(_route_hints + '::','').split('::').map(&:singularize).join('_').underscore.pluralize
         end
 
         subclass.attribute :id, format: :id

@@ -209,7 +209,7 @@ module ActionDispatch
 
           formatted_relationship_name = format_route(relationship.name)
           source_by_type = resource_type_with_module_prefix(source._type)
-          module_namespace = 'zjsonbs'
+
           options[:controller] ||= resource_controller_from_relationship(relationship)
 
           puts "ROUTE: get_related_resources for formatted: #{formatted_relationship_name} controller: #{options[:controller]}, relationship: #{relationship.name}, source: #{source_by_type}"

@@ -120,7 +120,7 @@ module JSONAPI
 
     def parse_modify_relationship_action(params, modification_type)
       relationship_type = params.require(:relationship)
-      parent_key = params.require(@resource_klass._as_parent_key)
+      parent_key = params.require(@resource_klass._as_parent_key_id)
       relationship = @resource_klass._relationship(relationship_type)
 
       # Removals of to-one relationships are done implicitly and require no specification of data

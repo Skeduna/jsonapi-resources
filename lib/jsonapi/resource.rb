@@ -720,6 +720,10 @@ module JSONAPI
         @_as_parent_key ||= "#{_type.to_s.singularize}_id"
       end
 
+      def _as_parent_key_id
+        @_as_parent_key_id ||= "#{_type.to_s.singularize}_id"
+      end
+
       def _allowed_filters
         !@_allowed_filters.nil? ? @_allowed_filters : { id: {} }
       end

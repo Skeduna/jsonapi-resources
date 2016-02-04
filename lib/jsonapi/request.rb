@@ -378,7 +378,7 @@ module JSONAPI
     def verify_type(type)
       if type.nil?
         fail JSONAPI::Exceptions::ParameterMissing.new(:type)
-      elsif unformat_key(type).to_sym != @resource_klass._type
+      elsif unformat_key(type).to_sym != @resource_klass._type_from_class.to_sym
         fail JSONAPI::Exceptions::InvalidResource.new(type)
       end
     end
@@ -456,8 +456,6 @@ module JSONAPI
     end
 
     def parse_to_one_relationship(link_value, relationship)
-
-
       if link_value.nil?
         linkage = nil
       else
@@ -507,7 +505,7 @@ module JSONAPI
       if links_object.length == 0
         add_result.call([])
       else
-        if links_object.length > 1 || !links_object.has_key?(unformat_key(relationship.type).to_s)
+        if links_object.length > 1 || !links_object.has_key?(unformat_key(relationship.name).to_s)
           fail JSONAPI::Exceptions::TypeMismatch.new(links_object[:type])
         end
 

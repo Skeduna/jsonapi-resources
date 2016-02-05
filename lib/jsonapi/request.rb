@@ -43,7 +43,6 @@ module JSONAPI
     end
 
     def setup_index_action(params)
-      puts "setup_index_action"
       parse_fields(params[:fields])
       parse_include_directives(params[:include])
       set_default_filters
@@ -54,7 +53,6 @@ module JSONAPI
     end
 
     def setup_get_related_resource_action(params)
-      puts "setup_get_related_resource_action"
       initialize_source(params)
       parse_fields(params[:fields])
       parse_include_directives(params[:include])
@@ -66,7 +64,6 @@ module JSONAPI
     end
 
     def setup_get_related_resources_action(params)
-      puts "setup_get_related_resources_action"
       initialize_source(params)
       parse_fields(params[:fields])
       parse_include_directives(params[:include])
@@ -78,7 +75,6 @@ module JSONAPI
     end
 
     def setup_show_action(params)
-      puts "setup_show_action"
       parse_fields(params[:fields])
       parse_include_directives(params[:include])
       @id = params[:id]
@@ -86,7 +82,6 @@ module JSONAPI
     end
 
     def setup_show_relationship_action(params)
-      puts "setup_show_relationship_action"
       add_show_relationship_operation(params[:relationship], params.require(@resource_klass._as_parent_key_id))
     end
 
@@ -316,8 +311,6 @@ module JSONAPI
     end
 
     def add_show_relationship_operation(relationship_type, parent_key)
-      #binding.pry
-      puts "relationship_type: #{relationship_type} parent_key #{parent_key}"
       @operations.push JSONAPI::ShowRelationshipOperation.new(
         @resource_klass,
         context: @context,

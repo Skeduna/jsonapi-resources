@@ -12,13 +12,9 @@ module JSONAPI
       @parent_resource = options[:parent_resource]
       @relation_name = options.fetch(:relation_name, @name)
       @polymorphic = options.fetch(:polymorphic, false) == true
-
       @always_include_linkage_data = options.fetch(:always_include_linkage_data, false) == true
       @route_namespace = @parent_resource._route_hints
-      #@namespace_hint = options.fetch(:namespace_hint, @parent_resource._model_name.deconstantize.pluralize)
       @namespace_hint = options[:namespace_hint] ? options[:namespace_hint].to_sym : nil
-      #@namespace_hint = options.fetch(:namespace_hint, @parent_resource._model_name.deconstantize.pluralize)
-
     end
 
     alias_method :polymorphic?, :polymorphic
@@ -38,9 +34,6 @@ module JSONAPI
       if class_name == name
         class_name
       else
-        # Options: {:class_name=>"Api::V1::Zjsonbs::Publisher", :parent_resource=>Api::V1::Zjsonas::BookResource}
-        # Desired: zjsonb_publishers
-
         if options.has_key?(:class_name) && options.has_key?(:parent_resource)
           class_array = class_name.downcase.split('::')
           parent_array = options[:parent_resource].to_s.downcase.split('::')
@@ -101,28 +94,29 @@ module JSONAPI
       #somebody built the wrong class_name and we need to rebuild better
       #faster and stronger.
 
-      #Todo: make self contained!
-      # namespace_hint = options[:namespace_hint] ? options[:namespace_hint].to_sym : nil
-      # route_namespace = options[:route_namespace] ? options[:route_namespace].to_sym : nil
-      # class_name = options[:class_name] ? options[:class_name].to_sym : nil
+      namespace_hint = options[:namespace_hint] ? options[:namespace_hint].to_sym : nil
 
-      if  options.has_key?(:class_name) && !@route_namespace.blank? && options[:class_name].to_s[@route_namespace]
+      if  options.has_key?(:class_name) && !self.route_namespace.blank? && options[:class_name].to_s[self.route_namespace]
         options[:class_name]
-      elsif !options.has_key?(:class_name) && @route_namespace.blank? && @namespace_hint.blank?
+      elsif !options.has_key?(:class_name) && self.route_namespace.blank? && namespace_hint.blank?
         name.to_s.camelize
       else
-        class_path = @route_namespace if !@route_namespace.blank?
+        class_path = self.route_namespace if !self.route_namespace.blank?
 
-        if @namespace_hint.blank?
-          class_path + '::' + name.to_s.camelize
+        if namespace_hint.blank?
+          if self.route_namespace.blank?
+            '::' + name.to_s.camelize
+          else
+            class_path + '::' + name.to_s.camelize
+          end
         else
-          class_path = class_path + '::' + @namespace_hint.to_s.demodulize.classify.pluralize
-          if @namespace_hint == name || @namespace_hint.to_s == name.to_s.pluralize
+          class_path = class_path + '::' + namespace_hint.to_s.demodulize.classify.pluralize
+          if namespace_hint == name || namespace_hint.to_s == name.to_s.pluralize
             class_path #zjsonbsS
-          elsif name.to_s.downcase[@namespace_hint.to_s.downcase.pluralize]
-            class_path + '::' + name.to_s.sub(@namespace_hint.to_s.pluralize + '_' , '').camelize
-          elsif  name.to_s.downcase[@namespace_hint.to_s.downcase.singularize]
-            class_path + '::' + name.to_s.sub(@namespace_hint.to_s.singularize + '_', '').camelize
+          elsif name.to_s.downcase[namespace_hint.to_s.downcase.pluralize]
+            class_path + '::' + name.to_s.sub(namespace_hint.to_s.pluralize + '_' , '').camelize
+          elsif  name.to_s.downcase[namespace_hint.to_s.downcase.singularize]
+            class_path + '::' + name.to_s.sub(namespace_hint.to_s.singularize + '_', '').camelize
           else
             class_path + '::' + name.to_s.camelize
           end
@@ -135,21 +129,9 @@ module JSONAPI
 
       def initialize(name, options = {})
         super
-
-        #puts "ToOne: parent_resource: #{@parent_resource}"
-
         @class_name = relation_class_name(name, options)
         @relation_name = relation_relation_name(name,options)
-
-        #puts "ToOne: #{class_name.underscore.pluralize.to_sym} name #{name}"
-        #puts "ToOne: #{class_name.underscore.pluralize.to_sym}"
-
-        #myname = "#{class_name.to_s.underscore.singularize}_resource".camelize
-
         @type = @relation_name.to_s.pluralize.to_sym
-        puts "ToOne: parent_resource: #{@parent_resource}, class_name: #{@class_name}, relation_name #{@relation_name}, type: #{@type}"
-        #@type = relation_for_type(name.to_s.camelize, @class_name, options).underscore.pluralize.to_sym
-        #@type = name.to_s.camelize.singularize.underscore.pluralize.to_sym
         @foreign_key ||= "#{relation_name(String)}_guid".to_sym
         @foreign_key_on = options.fetch(:foreign_key_on, :self)
 
@@ -168,20 +150,9 @@ module JSONAPI
       def initialize(name, options = {})
 
         super
-        #puts "ToMany: parent_resource: #{@parent_resource}"
-        #binding.pry
         @class_name = relation_class_name(name, options).singularize
-        #binding.pry if "#{@parent_resource}" == 'Api::V1::InstitutionResource' && "#{@class_name}" == 'Api::V1::Degreerequirement'
         @relation_name = relation_relation_name(name,options)
-        # @class_name = class_name_with_namespace(options[:class_name], name.to_s.camelize)
-        #@class_name = class_name_with_namespace(options.fetch(:class_name, name.to_s.camelize.singularize))
-        #puts "ToMany: #{class_name.underscore.pluralize.to_sym} name #{name}"
         @type = @relation_name.to_s.pluralize.to_sym
-
-        puts "ToMany: parent_resource: #{@parent_resource}, class_name: #{@class_name}, relation_name #{@relation_name}, type: #{@type}"
-        #relation_for_type(name.to_s.camelize.singularize, @class_name, options).underscore.pluralize.to_sym
-        #@type = class_name.underscore.pluralize.to_sym
-        #@type = name.to_s.camelize.singularize.underscore.pluralize.to_sym
         @foreign_key ||= "#{relation_name(String).to_s.singularize}_guids".to_sym
       end
     end

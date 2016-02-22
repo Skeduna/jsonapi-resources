@@ -833,7 +833,7 @@ module JSONAPI
 
                 if relationship.polymorphic?
                   associated_model = public_send(associated_records_method_name)
-                  resource_klass = self.class.resource_for_model(associated_model) if associated_model
+                  resource_klass = self.class.resource_for(relationship.route_namespace + '::' + associated_model.class.to_s.split('::').map(&:pluralize).join('::')) if associated_model
                   return resource_klass.new(associated_model, @context) if resource_klass
                 else
                   resource_klass = relationship.resource_klass

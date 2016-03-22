@@ -69,7 +69,7 @@ module JSONAPI
     def type_for_source(source)
       if polymorphic?
         resource = source.public_send(name)
-        resource.class._type if resource
+        resource.class._type_from_class if resource
       else
         type
       end
